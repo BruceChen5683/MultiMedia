@@ -12,6 +12,8 @@ import java.io.IOException;
  *
  *from  https://blog.csdn.net/u011520181/article/details/59482762
  * http://www.cnblogs.com/renhui/p/7457321.html
+ *
+ * http://www.cnblogs.com/cheney23reg/archive/2010/08/08/1795067.html
  */
 
 public class PcmToWavUtil implements Convert{

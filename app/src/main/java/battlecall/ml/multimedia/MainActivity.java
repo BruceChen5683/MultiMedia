@@ -5,13 +5,11 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.Paint;
-import android.graphics.drawable.BitmapDrawable;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
-import android.media.MediaRecorder;
-import android.os.Environment;
+import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -21,10 +19,13 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 
 import battlecall.ml.multimedia.uitls.Convert;
 import battlecall.ml.multimedia.uitls.PcmToWavUtil;
@@ -39,7 +40,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 	private int recordBufSize = 0;
 	private boolean isRecording = false;
 
-	private AudioTrack audioTrack;
+	private AudioTrack audioPlayer;
+	private byte[] audioData;
 
 
 	@Override
@@ -58,6 +60,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 		btnRecord.setOnClickListener(this);
 		
 //		Bitmap bitmap = BitmapFactory.decodeResource(getResources(),R.drawable.name);
+
+
 
 		final Bitmap bitmap = BitmapFactory.decodeFile(Config.IMAGE_PATH);
 
@@ -200,8 +204,69 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 	}
 
 	private void stopPlay() {
+		if (null != audioPlayer){
+			Log.d("cjl", "MainActivity ---------stopPlay:      stopping");
+			audioPlayer.stop();
+			audioPlayer.release();
+			Log.d("cjl", "MainActivity ---------stopPlay:    null  ");
+		}
 	}
 
 	private void startPlay() {
+		new GetDataTask().execute();
 	}
+
+
+	private class GetDataTask extends AsyncTask{
+
+		@Override
+		protected Object doInBackground(Object[] objects) {
+			Log.d("cjl", "GetDataTask ---------doInBackground:      start write to out");
+			try {
+				InputStream in = new FileInputStream(Config.CONVERT_PATH);
+
+
+				ByteArrayOutputStream out = new ByteArrayOutputStream();
+				//读取数据耗时8秒
+//				10-17 20:26:05.708 11884-12284/battlecall.ml.multimedia D/cjl: GetDataTask ---------doInBackground:      start write to out
+//				10-17 20:26:13.708 11884-12284/battlecall.ml.multimedia D/cjl: GetDataTask ---------doInBackground:      out write end
+//				for (int bData;(bData = in.read()) != -1;){
+//					out.write(bData);
+//				}
+
+//				10-17 20:30:10.908 16192-17230/battlecall.ml.multimedia D/cjl: GetDataTask ---------doInBackground:      start write to out
+//				10-17 20:30:10.918 16192-17230/battlecall.ml.multimedia D/cjl: GetDataTask ---------doInBackground:      out write end
+				//读取数据耗时10毫秒
+				byte[] buffer = new byte[1024];
+				while ( in.read(buffer) != -1){
+					out.write(buffer);
+				}
+
+
+				Log.d("cjl", "GetDataTask ---------doInBackground:      out write end");
+				audioData = out.toByteArray();
+
+				audioPlayer = new AudioTrack(
+						AudioManager.STREAM_MUSIC,
+						Config.SAMPLE_RATE,
+						AudioFormat.CHANNEL_OUT_MONO,
+						Config.AUDIO_FORMAT,
+						audioData.length,
+						AudioTrack.MODE_STATIC);
+
+				Log.d("cjl", "GetDataTask ---------doInBackground:      writing data ...");
+				audioPlayer.write(audioData,0,audioData.length);
+				Log.d("cjl", "GetDataTask ---------doInBackground:      play start");
+				audioPlayer.play();
+				Log.d("cjl", "GetDataTask ---------doInBackground:      playing");
+
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			return null;
+		}
+	}
+
 }
