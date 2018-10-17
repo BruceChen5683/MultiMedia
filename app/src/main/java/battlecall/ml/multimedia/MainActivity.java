@@ -5,11 +5,13 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.media.AudioAttributes;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -20,6 +22,7 @@ import android.widget.Button;
 import android.widget.ImageView;
 
 import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -218,48 +221,53 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 
 	private class GetDataTask extends AsyncTask{
-
+		//MODE_STREAM
 		@Override
 		protected Object doInBackground(Object[] objects) {
-			Log.d("cjl", "GetDataTask ---------doInBackground:      start write to out");
+			Log.d("cjl", "GetDataTask ---------doInBackground:     MODE_STREAM ");
 			try {
 				InputStream in = new FileInputStream(Config.CONVERT_PATH);
+				DataInputStream dis = new DataInputStream(in);
 
-
-				ByteArrayOutputStream out = new ByteArrayOutputStream();
-				//读取数据耗时8秒
-//				10-17 20:26:05.708 11884-12284/battlecall.ml.multimedia D/cjl: GetDataTask ---------doInBackground:      start write to out
-//				10-17 20:26:13.708 11884-12284/battlecall.ml.multimedia D/cjl: GetDataTask ---------doInBackground:      out write end
-//				for (int bData;(bData = in.read()) != -1;){
-//					out.write(bData);
-//				}
-
-//				10-17 20:30:10.908 16192-17230/battlecall.ml.multimedia D/cjl: GetDataTask ---------doInBackground:      start write to out
-//				10-17 20:30:10.918 16192-17230/battlecall.ml.multimedia D/cjl: GetDataTask ---------doInBackground:      out write end
-				//读取数据耗时10毫秒
-				byte[] buffer = new byte[1024];
-				while ( in.read(buffer) != -1){
-					out.write(buffer);
-				}
-
-
-				Log.d("cjl", "GetDataTask ---------doInBackground:      out write end");
-				audioData = out.toByteArray();
-
-				audioPlayer = new AudioTrack(
+				final int minBufferSize = AudioTrack.getMinBufferSize(Config.SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, Config.AUDIO_FORMAT);
+				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+					Log.d("cjl", "GetDataTask ---------doInBackground:      >=");
+					audioPlayer = new AudioTrack(
+							new AudioAttributes.Builder()
+									.setUsage(AudioAttributes.USAGE_MEDIA)
+									.setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+									.build(),
+							new AudioFormat.Builder().setSampleRate(Config.SAMPLE_RATE)
+									.setEncoding(Config.AUDIO_FORMAT)
+									.setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+									.build(),
+							minBufferSize,
+							AudioTrack.MODE_STREAM,
+							AudioManager.AUDIO_SESSION_ID_GENERATE);
+				}else{
+					audioPlayer = new AudioTrack(
 						AudioManager.STREAM_MUSIC,
 						Config.SAMPLE_RATE,
 						AudioFormat.CHANNEL_OUT_MONO,
 						Config.AUDIO_FORMAT,
-						audioData.length,
-						AudioTrack.MODE_STATIC);
+							minBufferSize,
+						AudioTrack.MODE_STREAM);
+					Log.d("cjl", "GetDataTask ---------doInBackground:      os version to low");
+				}
 
-				Log.d("cjl", "GetDataTask ---------doInBackground:      writing data ...");
-				audioPlayer.write(audioData,0,audioData.length);
-				Log.d("cjl", "GetDataTask ---------doInBackground:      play start");
-				audioPlayer.play();
-				Log.d("cjl", "GetDataTask ---------doInBackground:      playing");
+				byte[] tempBuffer = new byte[1024];
+				int readCount = 0;
+				while (dis.available() > 0){
+					readCount = dis.read(tempBuffer);
+					if (readCount == AudioTrack.ERROR_INVALID_OPERATION || readCount == AudioTrack.ERROR_BAD_VALUE){
+						continue;
+					}
 
+					if (readCount != 0 && readCount != AudioTrack.ERROR ){
+						audioPlayer.play();
+						audioPlayer.write(tempBuffer,0,readCount);
+					}
+				}
 			} catch (FileNotFoundException e) {
 				e.printStackTrace();
 			} catch (IOException e) {
@@ -267,6 +275,57 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 			}
 			return null;
 		}
+
+		// MODE_STATIC
+		//		@Override
+//		protected Object doInBackground(Object[] objects) {
+//			Log.d("cjl", "GetDataTask ---------doInBackground:      start write to out");
+//			try {
+//				InputStream in = new FileInputStream(Config.CONVERT_PATH);
+//
+//
+//				ByteArrayOutputStream out = new ByteArrayOutputStream();
+//				//读取数据耗时8秒
+////				10-17 20:26:05.708 11884-12284/battlecall.ml.multimedia D/cjl: GetDataTask ---------doInBackground:      start write to out
+////				10-17 20:26:13.708 11884-12284/battlecall.ml.multimedia D/cjl: GetDataTask ---------doInBackground:      out write end
+////				for (int bData;(bData = in.read()) != -1;){
+////					out.write(bData);
+////				}
+//
+////				10-17 20:30:10.908 16192-17230/battlecall.ml.multimedia D/cjl: GetDataTask ---------doInBackground:      start write to out
+////				10-17 20:30:10.918 16192-17230/battlecall.ml.multimedia D/cjl: GetDataTask ---------doInBackground:      out write end
+//				//读取数据耗时10毫秒
+//				byte[] buffer = new byte[1024];
+//				while ( in.read(buffer) != -1){
+//					out.write(buffer);
+//				}
+//
+//
+//				Log.d("cjl", "GetDataTask ---------doInBackground:      out write end");
+//				audioData = out.toByteArray();
+//
+//				audioPlayer = new AudioTrack(
+//						AudioManager.STREAM_MUSIC,
+//						Config.SAMPLE_RATE,
+//						AudioFormat.CHANNEL_OUT_MONO,
+//						Config.AUDIO_FORMAT,
+//						audioData.length,
+//						AudioTrack.MODE_STATIC);
+//
+//				Log.d("cjl", "GetDataTask ---------doInBackground:      writing data ...");
+//				audioPlayer.write(audioData,0,audioData.length);
+//				Log.d("cjl", "GetDataTask ---------doInBackground:      play start");
+//				audioPlayer.play();
+//				Log.d("cjl", "GetDataTask ---------doInBackground:      playing");
+//
+//
+//			} catch (FileNotFoundException e) {
+//				e.printStackTrace();
+//			} catch (IOException e) {
+//				e.printStackTrace();
+//			}
+//			return null;
+//		}
 	}
 
 }
