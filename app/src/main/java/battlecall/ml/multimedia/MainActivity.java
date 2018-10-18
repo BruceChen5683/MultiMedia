@@ -3,13 +3,17 @@ package battlecall.ml.multimedia;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.SurfaceTexture;
+import android.hardware.Camera;
 import android.media.AudioAttributes;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
+import android.opengl.GLSurfaceView;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.support.v7.app.AppCompatActivity;
@@ -17,6 +21,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.TextureView;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -35,9 +40,10 @@ import battlecall.ml.multimedia.uitls.PcmToWavUtil;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener{
 	private ImageView imageView;
-	private SurfaceView surfaceView;
+	private SurfaceView surfaceView,surfaceViewCamera;
+	private TextureView textureView;
 	private CustomView customView;
-	private Button btnRecord,btnPlay;
+	private Button btnRecord,btnPlay,btnConvert,btnAction;
 
 	private AudioRecord audioRecord = null;
 	private int recordBufSize = 0;
@@ -45,6 +51,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 	private AudioTrack audioPlayer;
 	private byte[] audioData;
+
+	private Camera camera;
 
 
 	@Override
@@ -54,14 +62,44 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 		imageView = findViewById(R.id.iv);
 		surfaceView = findViewById(R.id.sv);
+		surfaceViewCamera = findViewById(R.id.camera1);
+
 		btnRecord = findViewById(R.id.record);
 		btnPlay = findViewById(R.id.play);
+		btnConvert = findViewById(R.id.convert);
+		btnAction = findViewById(R.id.action);
 
-		findViewById(R.id.convert).setOnClickListener(this);
+		textureView = findViewById(R.id.camera2);
 
+		btnConvert.setOnClickListener(this);
 		btnPlay.setOnClickListener(this);
 		btnRecord.setOnClickListener(this);
-		
+		btnAction.setOnClickListener(this);
+
+		textureView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
+			@Override
+			public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int i, int i1) {
+				Log.d("cjl", "MainActivity ---------onSurfaceTextureAvailable:      ");
+			}
+
+			@Override
+			public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture, int i, int i1) {
+				Log.d("cjl", "MainActivity ---------onSurfaceTextureSizeChanged:      ");
+			}
+
+			@Override
+			public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
+				Log.d("cjl", "MainActivity ---------onSurfaceTextureDestroyed:      ");
+				return false;
+			}
+
+			@Override
+			public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
+				Log.d("cjl", "MainActivity ---------onSurfaceTextureUpdated:      ");
+
+			}
+		});
+
 //		Bitmap bitmap = BitmapFactory.decodeResource(getResources(),R.drawable.name);
 
 
@@ -107,6 +145,24 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 			}
 		});
+
+		surfaceViewCamera.getHolder().addCallback(new SurfaceHolder.Callback() {
+			@Override
+			public void surfaceCreated(SurfaceHolder surfaceHolder) {
+				Log.d("cjl", "MainActivity ---------surfaceCreated:      ");
+			}
+
+			@Override
+			public void surfaceChanged(SurfaceHolder surfaceHolder, int i, int i1, int i2) {
+				Log.d("cjl", "MainActivity ---------surfaceChanged:      ");
+			}
+
+			@Override
+			public void surfaceDestroyed(SurfaceHolder surfaceHolder) {
+				Log.d("cjl", "MainActivity ---------surfaceDestroyed:      ");
+			}
+		});
+
 	}
 
 	private void startRecord() {
@@ -201,9 +257,50 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 				Convert convert = new PcmToWavUtil(Config.AUDIO_FORMAT,Config.SAMPLE_RATE,Config.CHANNEL_CONFIG);
 				convert.convert(Config.RECORD_PATH,Config.CONVERT_PATH);
 				break;
+			case R.id.action:
+				Log.d("cjl", "MainActivity ---------onClick:      Action .....");
+
+				openCamera();
+				changePreView();
+
+				break;
 			default:
 				break;
 		}
+	}
+
+	private void changePreView() {
+		try {
+			if (btnAction.getText().toString().equals(getString(R.string.preview1))){
+				btnAction.setText(R.string.preview2);
+				camera.setPreviewDisplay(surfaceViewCamera.getHolder());
+			}else {
+				btnAction.setText(R.string.preview1);
+				camera.setPreviewTexture(textureView.getSurfaceTexture());
+			}
+			camera.startPreview();
+
+			Camera.Parameters parameters = camera.getParameters();
+			parameters.setPreviewFormat(ImageFormat.NV21);
+			camera.setParameters(parameters);
+
+			camera.setPreviewCallback(new Camera.PreviewCallback() {
+				@Override
+				public void onPreviewFrame(byte[] bytes, Camera camera) {
+					Log.d("cjl", "MainActivity ---------onPreviewFrame:      "+bytes.length);
+				}
+			});
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void openCamera() {
+		if(camera != null){
+			camera.release();
+		}
+		camera = Camera.open();
+		camera.setDisplayOrientation(90);
 	}
 
 	private void stopPlay() {
