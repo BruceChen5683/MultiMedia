@@ -1,5 +1,6 @@
 package battlecall.ml.multimedia;
 
+import android.annotation.TargetApi;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -13,6 +14,8 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
+import android.media.MediaExtractor;
+import android.media.MediaFormat;
 import android.opengl.GLSurfaceView;
 import android.os.AsyncTask;
 import android.os.Build;
@@ -34,16 +37,18 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 
 import battlecall.ml.multimedia.uitls.Convert;
 import battlecall.ml.multimedia.uitls.PcmToWavUtil;
 
+@TargetApi(Build.VERSION_CODES.JELLY_BEAN)
 public class MainActivity extends AppCompatActivity implements View.OnClickListener{
 	private ImageView imageView;
 	private SurfaceView surfaceView,surfaceViewCamera;
 	private TextureView textureView;
 	private CustomView customView;
-	private Button btnRecord,btnPlay,btnConvert,btnAction;
+	private Button btnRecord,btnPlay,btnConvert,btnAction,btnExtract;
 
 	private AudioRecord audioRecord = null;
 	private int recordBufSize = 0;
@@ -53,6 +58,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 	private byte[] audioData;
 
 	private Camera camera;
+
+	private MediaExtractor mediaExtractor = new MediaExtractor();
+	private int videoTrackIndex = -1,audioTrackIndex = -1;
 
 
 	@Override
@@ -68,6 +76,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 		btnPlay = findViewById(R.id.play);
 		btnConvert = findViewById(R.id.convert);
 		btnAction = findViewById(R.id.action);
+		btnExtract = findViewById(R.id.extract);
 
 		textureView = findViewById(R.id.camera2);
 
@@ -75,6 +84,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 		btnPlay.setOnClickListener(this);
 		btnRecord.setOnClickListener(this);
 		btnAction.setOnClickListener(this);
+		btnExtract.setOnClickListener(this);
 
 		textureView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
 			@Override
@@ -262,10 +272,76 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 				openCamera();
 				changePreView();
-
+				break;
+			case R.id.extract:
+				extractVideoAudio();
 				break;
 			default:
 				break;
+		}
+	}
+
+	private void extractVideoAudio() {
+		Log.d("cjl", "MainActivity ---------extractVideoAudio:      ");
+		FileOutputStream videoOps = null,audioOps = null;
+		try {
+			videoOps = new FileOutputStream("/sdcard/video.test");
+			audioOps = new FileOutputStream("/sdcard/audio.test");
+			mediaExtractor.setDataSource(Config.MP4_PATH);
+
+			int numTracks = mediaExtractor.getTrackCount();
+			Log.d("cjl", "MainActivity ---------extractVideoAudio:      numTracks "+numTracks);
+			for (int i = 0;i < numTracks;++i){
+				MediaFormat format = mediaExtractor.getTrackFormat(i);
+				String mineType = format.getString(MediaFormat.KEY_MIME);
+//				mediaExtractor.selectTrack(i);
+
+				Log.d("cjl", "MainActivity ---------extractVideoAudio:     mineType  "+mineType);
+				//视频信道
+				if (mineType.startsWith("video/")) {
+					videoTrackIndex = i;
+				}
+				//音频信道
+				if (mineType.startsWith("audio/")) {
+					audioTrackIndex = i;
+				}
+			}
+
+			ByteBuffer bytebuffer = ByteBuffer.allocate(1024*500);
+			Log.d("cjl", "MainActivity ---------extractVideoAudio:   videoTrackIndex   "+videoTrackIndex);
+			Log.d("cjl", "MainActivity ---------extractVideoAudio:    audioTrackIndex  "+audioTrackIndex);
+			mediaExtractor.selectTrack(videoTrackIndex);
+			int readCount;
+			Log.d("cjl", "MainActivity ---------extractVideoAudio:      start video extract");
+			while ((readCount = mediaExtractor.readSampleData(bytebuffer,0)) >= 0){
+//				Log.d("cjl", "MainActivity ---------extractVideoAudio:      extract video ing");
+				byte[] buffer = new byte[readCount];
+				bytebuffer.get(buffer);
+				videoOps.write(buffer);
+				bytebuffer.clear();
+				mediaExtractor.advance();
+			}
+			mediaExtractor.selectTrack(audioTrackIndex);
+			Log.d("cjl", "MainActivity ---------extractVideoAudio:      start audio extract");
+			while ((readCount = mediaExtractor.readSampleData(bytebuffer,0)) >= 0){
+//				Log.d("cjl", "MainActivity ---------extractVideoAudio:      extract audio ing");
+
+				byte[] buffer = new byte[readCount];
+				bytebuffer.get(buffer);
+				audioOps.write(buffer);
+				bytebuffer.clear();
+				mediaExtractor.advance();
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}finally {
+			mediaExtractor.release();
+			try {
+				audioOps.close();
+				videoOps.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 

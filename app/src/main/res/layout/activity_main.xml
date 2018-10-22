@@ -77,6 +77,15 @@
         app:layout_constraintRight_toLeftOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/action"/>
 
+    <Button
+        android:id="@+id/extract"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toBottomOf="@+id/camera2"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        android:text="提取"/>
+
 
 
 </android.support.constraint.ConstraintLayout>
