@@ -335,6 +335,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 			mediaMuxer = new MediaMuxer("/sdcard/new_output.mp4",MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
 			mediaMuxer.addTrack(videoFormat);
+			mediaMuxer.addTrack(audioFormat);
+
 			mediaMuxer.start();
 
 
@@ -359,11 +361,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 				mediaExtractor.advance();
 			}
 
-			mediaMuxer.stop();
-			mediaMuxer.release();
 
-
-
+			bufferInfo = new MediaCodec.BufferInfo();
+			bufferInfo.presentationTimeUs = 0;
 
 			mediaExtractor.selectTrack(audioTrackIndex);
 			Log.d("cjl", "MainActivity ---------extractVideoAudio:      start audio extract");
@@ -373,9 +373,22 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 				byte[] buffer = new byte[readCount];
 				bytebuffer.get(buffer);
 				audioOps.write(buffer);
+
+				bufferInfo.offset = 0;
+				bufferInfo.size = readCount;
+				bufferInfo.presentationTimeUs += 1000*1000/frameRate;
+				bufferInfo.flags = MediaCodec.BUFFER_FLAG_SYNC_FRAME;
+
+				Log.d("cjl", "MainActivity ---------extractVideoAudio:      generate mp4 audio");
+				mediaMuxer.writeSampleData(audioTrackIndex,bytebuffer,bufferInfo);
+
 				bytebuffer.clear();
 				mediaExtractor.advance();
 			}
+
+			mediaMuxer.stop();
+			mediaMuxer.release();
+
 		} catch (IOException e) {
 			e.printStackTrace();
 		}finally {
