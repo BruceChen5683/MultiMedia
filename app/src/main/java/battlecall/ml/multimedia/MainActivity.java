@@ -1,5 +1,6 @@
 package battlecall.ml.multimedia;
 
+import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -14,11 +15,14 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
+import android.media.MediaCodec;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
+import android.media.MediaMuxer;
 import android.opengl.GLSurfaceView;
 import android.os.AsyncTask;
 import android.os.Build;
+import android.support.annotation.RequiresApi;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -61,6 +65,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 	private MediaExtractor mediaExtractor = new MediaExtractor();
 	private int videoTrackIndex = -1,audioTrackIndex = -1;
+
+	private MediaMuxer mediaMuxer;
+	private MediaFormat videoFormat,audioFormat;
 
 
 	@Override
@@ -281,9 +288,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 		}
 	}
 
+	@SuppressLint("NewApi")
 	private void extractVideoAudio() {
 		Log.d("cjl", "MainActivity ---------extractVideoAudio:      ");
 		FileOutputStream videoOps = null,audioOps = null;
+		int frameRate = 15;
 		try {
 			videoOps = new FileOutputStream("/sdcard/video.test");
 			audioOps = new FileOutputStream("/sdcard/audio.test");
@@ -298,12 +307,22 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 				Log.d("cjl", "MainActivity ---------extractVideoAudio:     mineType  "+mineType);
 				//视频信道
+
+				if (format.containsKey(MediaFormat.KEY_OPERATING_RATE)){
+					Log.d("cjl", "MainActivity ---------extractVideoAudio:      "+format.getInteger(MediaFormat.KEY_OPERATING_RATE));
+				}
 				if (mineType.startsWith("video/")) {
 					videoTrackIndex = i;
+					videoFormat = format;
+					if (format.containsKey(MediaFormat.KEY_FRAME_RATE)){
+						Log.d("cjl", "MainActivity ---------extractVideoAudio:      video");
+						frameRate = format.getInteger(MediaFormat.KEY_FRAME_RATE);;
+					}
 				}
 				//音频信道
 				if (mineType.startsWith("audio/")) {
 					audioTrackIndex = i;
+					audioFormat = format;
 				}
 			}
 
@@ -313,14 +332,39 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 			mediaExtractor.selectTrack(videoTrackIndex);
 			int readCount;
 			Log.d("cjl", "MainActivity ---------extractVideoAudio:      start video extract");
+
+			mediaMuxer = new MediaMuxer("/sdcard/new_output.mp4",MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
+			mediaMuxer.addTrack(videoFormat);
+			mediaMuxer.start();
+
+
+			MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
+			bufferInfo.presentationTimeUs = 0;
+
 			while ((readCount = mediaExtractor.readSampleData(bytebuffer,0)) >= 0){
 //				Log.d("cjl", "MainActivity ---------extractVideoAudio:      extract video ing");
 				byte[] buffer = new byte[readCount];
 				bytebuffer.get(buffer);
+				Log.d("cjl", "MainActivity ---------extractVideoAudio:      write video");
 				videoOps.write(buffer);
+
+				bufferInfo.offset = 0;
+				bufferInfo.size = readCount;
+				bufferInfo.presentationTimeUs += 1000*1000/frameRate;
+				bufferInfo.flags = MediaCodec.BUFFER_FLAG_SYNC_FRAME;
+
+				Log.d("cjl", "MainActivity ---------extractVideoAudio:      generate mp4 video");
+				mediaMuxer.writeSampleData(videoTrackIndex,bytebuffer,bufferInfo);
 				bytebuffer.clear();
 				mediaExtractor.advance();
 			}
+
+			mediaMuxer.stop();
+			mediaMuxer.release();
+
+
+
+
 			mediaExtractor.selectTrack(audioTrackIndex);
 			Log.d("cjl", "MainActivity ---------extractVideoAudio:      start audio extract");
 			while ((readCount = mediaExtractor.readSampleData(bytebuffer,0)) >= 0){
