@@ -50,7 +50,6 @@ import battlecall.ml.multimedia.uitls.PcmToWavUtil;
 public class MainActivity extends AppCompatActivity implements View.OnClickListener{
 	private ImageView imageView;
 	private SurfaceView surfaceView,surfaceViewCamera;
-	private TextureView textureView;
 	private CustomView customView;
 	private Button btnRecord,btnPlay,btnConvert,btnAction,btnExtract;
 
@@ -85,41 +84,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 		btnAction = findViewById(R.id.action);
 		btnExtract = findViewById(R.id.extract);
 
-		textureView = findViewById(R.id.camera2);
-
 		btnConvert.setOnClickListener(this);
 		btnPlay.setOnClickListener(this);
 		btnRecord.setOnClickListener(this);
 		btnAction.setOnClickListener(this);
 		btnExtract.setOnClickListener(this);
 
-		textureView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
-			@Override
-			public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int i, int i1) {
-				Log.d("cjl", "MainActivity ---------onSurfaceTextureAvailable:      ");
-			}
-
-			@Override
-			public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture, int i, int i1) {
-				Log.d("cjl", "MainActivity ---------onSurfaceTextureSizeChanged:      ");
-			}
-
-			@Override
-			public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
-				Log.d("cjl", "MainActivity ---------onSurfaceTextureDestroyed:      ");
-				return false;
-			}
-
-			@Override
-			public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
-				Log.d("cjl", "MainActivity ---------onSurfaceTextureUpdated:      ");
-
-			}
-		});
-
 //		Bitmap bitmap = BitmapFactory.decodeResource(getResources(),R.drawable.name);
-
-
 
 		final Bitmap bitmap = BitmapFactory.decodeFile(Config.IMAGE_PATH);
 
@@ -276,8 +247,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 				break;
 			case R.id.action:
 				Log.d("cjl", "MainActivity ---------onClick:      Action .....");
-
-				openCamera();
 				changePreView();
 				break;
 			case R.id.extract:
@@ -406,35 +375,41 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 		try {
 			if (btnAction.getText().toString().equals(getString(R.string.preview1))){
 				btnAction.setText(R.string.preview2);
+
+				camera = Camera.open();
+				camera.setDisplayOrientation(90);
+
+
 				camera.setPreviewDisplay(surfaceViewCamera.getHolder());
+
+				camera.startPreview();
+
+				Camera.Parameters parameters = camera.getParameters();
+				parameters.setPreviewFormat(ImageFormat.NV21);
+				camera.setParameters(parameters);
+
+				camera.setPreviewCallback(new Camera.PreviewCallback() {
+					@Override
+					public void onPreviewFrame(byte[] bytes, Camera camera) {
+						Log.d("cjl", "MainActivity ---------onPreviewFrame:      "+bytes.length);
+					}
+				});
 			}else {
 				btnAction.setText(R.string.preview1);
-				camera.setPreviewTexture(textureView.getSurfaceTexture());
-			}
-			camera.startPreview();
-
-			Camera.Parameters parameters = camera.getParameters();
-			parameters.setPreviewFormat(ImageFormat.NV21);
-			camera.setParameters(parameters);
-
-			camera.setPreviewCallback(new Camera.PreviewCallback() {
-				@Override
-				public void onPreviewFrame(byte[] bytes, Camera camera) {
-					Log.d("cjl", "MainActivity ---------onPreviewFrame:      "+bytes.length);
+				if(camera != null){
+					camera.setPreviewCallback(null);
+					camera.stopPreview();
+					camera.release();
+					camera = null;
 				}
-			});
+
+			}
+
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
 
-	private void openCamera() {
-		if(camera != null){
-			camera.release();
-		}
-		camera = Camera.open();
-		camera.setDisplayOrientation(90);
-	}
 
 	private void stopPlay() {
 		if (null != audioPlayer){
