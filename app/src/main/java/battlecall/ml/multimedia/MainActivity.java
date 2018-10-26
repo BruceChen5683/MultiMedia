@@ -42,6 +42,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.List;
 
 import battlecall.ml.multimedia.uitls.Convert;
 import battlecall.ml.multimedia.uitls.PcmToWavUtil;
@@ -59,6 +60,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 	private AudioTrack audioPlayer;
 	private byte[] audioData;
+	private FileOutputStream fosNv12,fosNv21,fosI420,fosYv12;
 
 	private Camera camera;
 
@@ -247,7 +249,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 				break;
 			case R.id.action:
 				Log.d("cjl", "MainActivity ---------onClick:      Action .....");
-				changePreView();
+				preView();
 				break;
 			case R.id.extract:
 				extractVideoAudio();
@@ -371,7 +373,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 		}
 	}
 
-	private void changePreView() {
+	@SuppressLint("NewApi")
+	private void preView() {
 		try {
 			if (btnAction.getText().toString().equals(getString(R.string.preview1))){
 				btnAction.setText(R.string.preview2);
@@ -385,13 +388,61 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 				camera.startPreview();
 
 				Camera.Parameters parameters = camera.getParameters();
-				parameters.setPreviewFormat(ImageFormat.NV21);
+
+				Log.d("cjl", "MainActivity ---------preView:  format    " + parameters.getPreviewFormat());
+				Log.d("cjl", "MainActivity ---------preView:      width "+parameters.getPreviewSize().width);
+				Log.d("cjl", "MainActivity ---------preView:      height "+parameters.getPreviewSize().height);
+
+				Log.d("cjl", "MainActivity ---------preView:    getPreviewFrameRate  "+parameters.getPreviewFrameRate());
+
+				List<Integer> list = parameters.getSupportedPreviewFormats();
+				for (Integer i:list){
+					Log.d("cjl", "MainActivity ---------preView:      previewformat "+i);
+				}
+				parameters.setPreviewFormat(ImageFormat.NV21);//default
+//				parameters.setPreviewSize(1280,720);
+
 				camera.setParameters(parameters);
+
+//				mediaMuxer = new MediaMuxer(Config.CAMERA_OUTPUT_PATH,MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
+//				MediaFormat mediaFormat = new MediaFormat();
+//				mediaFormat.setString();
+//				int mVideoIndex = mediaMuxer.addTrack(mediaFormat);
+//				final ByteBuffer byteBuffers = ByteBuffer.allocate(1024*1024*10);
+//				final MediaCodec.BufferInfo bufferInofs = new MediaCodec.BufferInfo();
+				fosNv21 = new FileOutputStream(Config.CAMERA_OUTPUT_PATH_NV21);
+
+				fosNv12 = new FileOutputStream(Config.CAMERA_OUTPUT_PATH_NV12);
+//				fosI420 = new FileOutputStream(Config.CAMERA_OUTPUT_PATH_I420);
+//				fosYv12 = new FileOutputStream(Config.CAMERA_OUTPUT_PATH_YV12);
 
 				camera.setPreviewCallback(new Camera.PreviewCallback() {
 					@Override
 					public void onPreviewFrame(byte[] bytes, Camera camera) {
-						Log.d("cjl", "MainActivity ---------onPreviewFrame:      "+bytes.length);
+
+						int size = 1280*720;
+
+						byte[] dstDataNv12 = new byte[size/4*6];//dstDataI420,dstDataYv12;
+						System.arraycopy(bytes,0,dstDataNv12,0,1280*720);
+//						System.arraycopy(bytes,0,dstDataI420,0,1280*720);
+//						System.arraycopy(bytes,0,dstDataYv12,0,1280*720);
+
+						for (int i = 0;i < size/4;i++){
+							dstDataNv12[size + i*2] = bytes[size+i];//U
+							dstDataNv12[size + i*2+1] = bytes[size+size/4+i];//V
+						}
+
+
+
+						try {
+							fosNv21.write(bytes);
+							fosNv12.write(dstDataNv12);
+
+
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+
 					}
 				});
 			}else {
@@ -402,6 +453,22 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 					camera.release();
 					camera = null;
 				}
+
+				if (fosNv21 != null){
+					fosNv21.close();
+				}
+
+				if (fosNv12 != null){
+					fosNv12.close();
+				}
+
+//				if (fosI420 != null){
+//					fosI420.close();
+//				}
+//
+//				if (fosYv12 != null){
+//					fosYv12.close();
+//				}
 
 			}
 
