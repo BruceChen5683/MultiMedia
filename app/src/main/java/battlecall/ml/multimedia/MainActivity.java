@@ -45,6 +45,7 @@ import java.nio.ByteBuffer;
 import java.util.List;
 
 import battlecall.ml.multimedia.uitls.Convert;
+import battlecall.ml.multimedia.uitls.NV21ToNV12;
 import battlecall.ml.multimedia.uitls.PcmToWavUtil;
 
 @TargetApi(Build.VERSION_CODES.JELLY_BEAN)
@@ -52,7 +53,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 	private ImageView imageView;
 	private SurfaceView surfaceView,surfaceViewCamera;
 	private CustomView customView;
-	private Button btnRecord,btnPlay,btnConvert,btnAction,btnExtract;
+	private Button btnRecord,btnPlay,btnConvert,btnConvert1,btnEncoder,btnAction,btnExtract;
 
 	private AudioRecord audioRecord = null;
 	private int recordBufSize = 0;
@@ -60,7 +61,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 	private AudioTrack audioPlayer;
 	private byte[] audioData;
-	private FileOutputStream fosNv12,fosNv21,fosI420,fosYv12;
+	private FileOutputStream fosNv21;
 
 	private Camera camera;
 
@@ -83,6 +84,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 		btnRecord = findViewById(R.id.record);
 		btnPlay = findViewById(R.id.play);
 		btnConvert = findViewById(R.id.convert);
+		btnConvert1 = findViewById(R.id.convert1);
+		btnEncoder = findViewById(R.id.encoder);
 		btnAction = findViewById(R.id.action);
 		btnExtract = findViewById(R.id.extract);
 
@@ -246,6 +249,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 			case R.id.convert:
 				Convert convert = new PcmToWavUtil(Config.AUDIO_FORMAT,Config.SAMPLE_RATE,Config.CHANNEL_CONFIG);
 				convert.convert(Config.RECORD_PATH,Config.CONVERT_PATH);
+				break;
+
+			case R.id.convert1:
+				Convert convert1 = new NV21ToNV12(1280*720);
+				convert1.convert(Config.CAMERA_OUTPUT_PATH_NV21,Config.CAMERA_OUTPUT_PATH_NV12);
+				break;
+
+			case R.id.encoder:
+				Log.d("cjl", "MainActivity ---------onClick:      encoder");
+				
 				break;
 			case R.id.action:
 				Log.d("cjl", "MainActivity ---------onClick:      Action .....");
@@ -412,32 +425,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 //				final MediaCodec.BufferInfo bufferInofs = new MediaCodec.BufferInfo();
 				fosNv21 = new FileOutputStream(Config.CAMERA_OUTPUT_PATH_NV21);
 
-				fosNv12 = new FileOutputStream(Config.CAMERA_OUTPUT_PATH_NV12);
-//				fosI420 = new FileOutputStream(Config.CAMERA_OUTPUT_PATH_I420);
-//				fosYv12 = new FileOutputStream(Config.CAMERA_OUTPUT_PATH_YV12);
-
 				camera.setPreviewCallback(new Camera.PreviewCallback() {
 					@Override
 					public void onPreviewFrame(byte[] bytes, Camera camera) {
 
-						int size = 1280*720;
-
-						byte[] dstDataNv12 = new byte[size/4*6];//dstDataI420,dstDataYv12;
-						System.arraycopy(bytes,0,dstDataNv12,0,1280*720);
-//						System.arraycopy(bytes,0,dstDataI420,0,1280*720);
-//						System.arraycopy(bytes,0,dstDataYv12,0,1280*720);
-
-						for (int i = 0;i < size/4;i++){
-							dstDataNv12[size + i*2] = bytes[size+i];//U
-							dstDataNv12[size + i*2+1] = bytes[size+size/4+i];//V
-						}
-
-
-
 						try {
 							fosNv21.write(bytes);
-							fosNv12.write(dstDataNv12);
-
 
 						} catch (IOException e) {
 							e.printStackTrace();
@@ -457,18 +450,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 				if (fosNv21 != null){
 					fosNv21.close();
 				}
-
-				if (fosNv12 != null){
-					fosNv12.close();
-				}
-
-//				if (fosI420 != null){
-//					fosI420.close();
-//				}
-//
-//				if (fosYv12 != null){
-//					fosYv12.close();
-//				}
 
 			}
 
