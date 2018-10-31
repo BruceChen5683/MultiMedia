@@ -45,6 +45,7 @@ import java.nio.ByteBuffer;
 import java.util.List;
 
 import battlecall.ml.multimedia.uitls.Convert;
+import battlecall.ml.multimedia.uitls.NV12ToH264;
 import battlecall.ml.multimedia.uitls.NV21ToNV12;
 import battlecall.ml.multimedia.uitls.PcmToWavUtil;
 
@@ -90,6 +91,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 		btnExtract = findViewById(R.id.extract);
 
 		btnConvert.setOnClickListener(this);
+		btnConvert1.setOnClickListener(this);
+		btnEncoder.setOnClickListener(this);
 		btnPlay.setOnClickListener(this);
 		btnRecord.setOnClickListener(this);
 		btnAction.setOnClickListener(this);
@@ -227,6 +230,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 	@Override
 	public void onClick(View view) {
+		Log.d("cjl", "MainActivity ---------onClick:      "+((Button)view).getText());
 		switch (view.getId()){
 			case R.id.record:
 				if (btnRecord.getText().toString().equals(getString(R.string.stop_record))){
@@ -258,7 +262,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 			case R.id.encoder:
 				Log.d("cjl", "MainActivity ---------onClick:      encoder");
-				
+				Convert convert2 = new NV12ToH264(1280,720,30);
+				convert2.convert(Config.CAMERA_OUTPUT_PATH_NV12,Config.CAMERA_OUTPUT_PATH_MP4);
 				break;
 			case R.id.action:
 				Log.d("cjl", "MainActivity ---------onClick:      Action .....");

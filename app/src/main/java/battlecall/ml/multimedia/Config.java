@@ -17,6 +17,7 @@ public class Config {
 	public static final String CAMERA_OUTPUT_PATH_NV21 = "/sdcard/camera_nv21.video";
 	public static final String CAMERA_OUTPUT_PATH_I420 = "/sdcard/camera_i420.video";
 	public static final String CAMERA_OUTPUT_PATH_YV12 = "/sdcard/camera_yv12.video";
+	public static final String CAMERA_OUTPUT_PATH_MP4 = "/sdcard/camera_mp4.video";
 
 
 
